@@ -1,0 +1,143 @@
+#!/usr/bin/env python
+
+import yaml
+import sys
+
+def make_verilog_wrapper(yamlData, outStream):
+	# Initial sanity checking
+	if "module_name" not in yamlData:
+		print >> sys.stderr, "'module_name' key not found, aborting"
+		return
+	if "wrapper_name" not in yamlData:
+		print >> sys.stderr, "'wrapper_name' key not found. Aborting"
+
+	# Initial boilerplate
+	print >> outStream, "module {0}(".format(yamlData['wrapper_name'])
+
+	# Print all of the ports
+	if "clients" in yamlData:
+		for clientName, client in yamlData['clients'].iteritems():
+			reqWidth = client['request_width']
+			respWidth = client['response_width']
+			print >> outStream, "\toutput\t[{0} : 0] {1}_request_DOUT,".format(reqWidth-1, clientName)
+			print >> outStream, "\toutput\t\t{0}_request_valid,".format(clientName)
+			print >> outStream, "\tinput\t\t{0}_request_accept,".format(clientName)
+			print >> outStream, "\tinput\t[{0} : 0] {1}_response_DIN,".format(respWidth-1, clientName)
+			print >> outStream, "\toutput\t\t{0}_response_canaccept,".format(clientName)
+			print >> outStream, "\tinput\t\t{0}_response_commit,".format(clientName)
+
+	if "servers" in yamlData:
+		for serverName, server in yamlData['servers'].iteritems():
+			reqWidth = server['request_width']
+			respWidth = server['response_width']
+			print >> outStream, "\tinput\t[{0} : 0] {1}_request_DIN,".format(reqWidth-1, serverName)
+			print >> outStream, "\tinput\t\t{0}_request_valid,".format(serverName)
+			print >> outStream, "\toutput\t\t{0}_request_accept,".format(serverName)
+			print >> outStream, "\toutput\t[{0} : 0] {1}_response_DOUT,".format(respWidth-1, serverName)
+			print >> outStream, "\tinput\t\t{0}_response_canaccept,".format(serverName)
+			print >> outStream, "\toutput\t\t{0}_response_commit,".format(serverName)
+
+	# Finally, do clocks etc last so we definitely have the comma in the right place
+	print >> outStream, "\tinput\t\tCLK,"
+	print >> outStream, "\tinput\t\tRST_N);"
+
+	# Do parameters
+	if "parameters" in yamlData:
+		for paramName, parameter in yamlData['parameters'].iteritems():
+			if "width" in parameter:
+				print >> outStream, "parameter [{0} : 0] {1}".format(parameter['width'] - 1, paramName),
+			else:
+				print >> outStream, "parameter {0}".format(paramName),
+				
+			if "default" in parameter:
+				print >> outStream, " = {0};".format(parameter['default'])
+			else:
+				print >> outStream, ";"
+
+	# Generate any intermediate wires for servers
+	if "servers" in yamlData:
+		for serverName, server in yamlData['servers'].iteritems():
+			print >> outStream, "wire RDY_{0}_request_put;".format(serverName)
+			print >> outStream, "wire EN_{0}_request_put;".format(serverName)
+
+		print >> outStream, ""
+
+		for serverName, server in yamlData['servers'].iteritems():
+			print >> outStream, "wire RDY_{0}_response_get;".format(serverName)
+			print >> outStream, "wire EN_{0}_response_get;".format(serverName)
+
+		print >> outStream, ""
+
+		# Intermediate assignments
+		for serverName, server in yamlData['servers'].iteritems():
+			print >> outStream, "assign EN_{0}_request_put = RDY_{0}_request_put && {0}_request_valid;".format(serverName)
+		for serverName, server in yamlData['servers'].iteritems():
+			print >> outStream, "assign EN_{0}_response_get = RDY_{0}_response_get && {0}_response_canaccept;".format(serverName)
+		
+		print >> outStream, ""
+
+		for serverName, server in yamlData['servers'].iteritems():
+			print >> outStream, "assign {0}_request_accept = EN_{0}_request_put;".format(serverName)
+		for serverName, server in yamlData['servers'].iteritems():
+			print >> outStream, "assign {0}_response_commit = EN_{0}_response_get;".format(serverName)
+
+		print >> outStream, ""
+
+	# Instantiate the actual module!
+	if "parameters" in yamlData:
+		firstParam = True
+		print >> outStream, "{0}#(".format(yamlData['module_name'])
+		for paramName, parameter in yamlData['parameters'].iteritems():
+			# Print the trailing comma on the last element
+			if not firstParam:
+				print >> outStream, ","
+			else:
+				firstParam = False
+
+			print >> outStream, "\t.{0}({0})".format(paramName),
+		print >> outStream, ") inner("
+	else:
+		print >> outStream, "{0} inner(".format(yamlData['module_name'])
+
+	if "clients" in yamlData:
+		for clientName, client in yamlData['clients'].iteritems():
+			print >> outStream, "\t.EN_{0}_request_get({0}_request_accept),".format(clientName)
+			print >> outStream, "\t.{0}_request_get({0}_request_DOUT),".format(clientName)
+			print >> outStream, "\t.RDY_{0}_request_get({0}_request_valid),".format(clientName)
+			print >> outStream, "\t.{0}_response_put({0}_response_DIN),".format(clientName)
+			print >> outStream, "\t.EN_{0}_response_put({0}_response_commit),".format(clientName)
+			print >> outStream, "\t.RDY_{0}_response_put({0}_response_canaccept),".format(clientName)
+
+			print >> outStream, ""
+
+	if "servers" in yamlData:
+		for serverName, server in yamlData['servers'].iteritems():
+			print >> outStream, "\t.{0}_request_put({0}_request_DIN),".format(serverName)
+			print >> outStream, "\t.EN_{0}_request_put(EN_{0}_request_put),".format(serverName)
+			print >> outStream, "\t.RDY_{0}_request_put(RDY_{0}_request_put),".format(serverName)
+			print >> outStream, "\t.EN_{0}_response_get(EN_{0}_response_get),".format(serverName)
+			print >> outStream, "\t.{0}_response_get({0}_response_DOUT),".format(serverName)
+			print >> outStream, "\t.RDY_{0}_response_get(RDY_{0}_response_get),".format(serverName)
+
+			print >> outStream, ""
+
+	# As before, clocks last
+	print >> outStream, "\t.CLK(CLK),"
+	print >> outStream, "\t.RST_N(RST_N)"
+	print >> outStream, ");"
+	print >> outStream, ""
+	print >> outStream, "endmodule"
+
+if __name__ == "__main__":
+	if len(sys.argv) == 1:
+		inStream = sys.stdin
+		outStream = sys.stdout
+	elif len(sys.argv) == 2:
+		inStream = open(sys.argv[1], "r")
+		outStream = sys.stdout
+	elif len(sys.argv) == 3:
+		inStream = open(sys.argv[1], "r")
+		outStream = open(sys.argv[2], "w")
+
+	yml = yaml.load(inStream)
+	make_verilog_wrapper(yml, outStream)

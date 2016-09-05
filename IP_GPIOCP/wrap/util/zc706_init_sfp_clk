@@ -1,0 +1,36 @@
+echo "============================================"
+echo "ZC706 10G MAC setup test"
+echo "============================================"
+
+# Do the I2C dance...
+echo "Setting up I2C Bus"
+#i2c dev 0
+#i2c speed 100000
+
+# Set up the bus switch
+echo "Setting up bus switch"
+i2c mw 0x74 0.0 0x10 1
+
+# And now set up the device
+echo "Setting up clock chip..."
+i2c mw 0x68 0x0.1   0x54 1    # FREE_RUN
+i2c mw 0x68 0x1.1   0xE4 1    # CK_PRIOR2,CK_PRIOR1
+i2c mw 0x68 0x2.1   0x12 1    # BWSEL was 32
+i2c mw 0x68 0x3.1   0x15 1    # CKSEL_REG
+i2c mw 0x68 0x4.1   0x92 1    # AUTOSEL_REG
+i2c mw 0x68 0xa.1  0x08 1    # DSBL2_REG
+i2c mw 0x68 0xb.1  0x40 1    # PD_CK2
+i2c mw 0x68 0x19.1  0xA0 1    # N1_HS
+i2c mw 0x68 0x1f.1  0x00 1    # NC1_LS[19:16]
+i2c mw 0x68 0x20.1  0x00 1    # NC1_LS[15:8]
+i2c mw 0x68 0x21.1  0x03 1    # NC1_LS[7:0]
+i2c mw 0x68 0x28.1  0xC2 1    # N2_HS, N2_LS[19:16]
+i2c mw 0x68 0x29.1  0x49 1    # N2_LS[15:8]
+i2c mw 0x68 0x2a.1  0xEF 1    # N2_LS[7:0]
+i2c mw 0x68 0x2b.1  0x00 1    # N31[18:16]
+i2c mw 0x68 0x2c.1  0x77 1    # N31[15:8]
+i2c mw 0x68 0x2d.1  0x0B 1    # N31[7:0]
+i2c mw 0x68 0x2e.1  0x00 1    # N32[18:16]
+i2c mw 0x68 0x2f.1  0x77 1    # N32[15:8]
+i2c mw 0x68 0x30.1  0x0B 1    # N32[7:0]
+i2c mw 0x68 0x88.1 0x40 1    # RST_REG,ICAL

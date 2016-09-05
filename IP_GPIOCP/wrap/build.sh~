@@ -1,0 +1,5 @@
+#!/bin/bash
+
+ln -nfs $BLUESPECDIR/Verilog bsverilog
+bsc -p %/Prelude:%/Libraries:../ -u -verilog ../BlueGrass.bsv
+../util/generate_server_wrapper < BlueGrass.yml > BlueGrass.v

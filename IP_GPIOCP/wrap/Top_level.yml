@@ -1,0 +1,9 @@
+---
+module_name: "mkTop_level"
+wrapper_name: "BS_GPIOProcessor"
+
+clients:
+  bluetile_client: 
+    request_width: 32
+    response_width: 32
+
