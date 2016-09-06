@@ -1,0 +1,30 @@
+---
+module_name: "mkBluetilesRouter"
+wrapper_name: "BluetilesRouter"
+
+parameters:
+  xAddr:
+    width: 8
+    default: 0
+  yAddr:
+    width: 8
+    default: 0
+
+clients:
+  west:
+    request_width: 32
+    response_width: 32
+  south:
+    request_width: 32
+    response_width: 32
+
+servers:
+  north:
+    request_width: 32
+    response_width: 32
+  east:
+    request_width: 32
+    response_width: 32
+  home:
+    request_width: 32
+    response_width: 32

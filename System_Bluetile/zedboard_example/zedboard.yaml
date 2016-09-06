@@ -1,0 +1,31 @@
+---
+clock:
+  style: zynq
+  frequency: 100.000
+
+reset:
+  bdAutomation: false
+
+ip:
+  - &ps7
+    name: ZynqToplevel
+    vlnv: processing_system7
+  - &mblaze1
+    name: Microblaze
+    vlnv: microblaze
+    parameters:
+      localMemory: 8K
+      CONFIG.C_USE_FPU: 1
+  - &pp
+    name: PingPong
+    vlnv: bluetiles_pingpong
+  - &inspector
+    name: inspector
+    vlnv: bluetiles_inspector
+
+tilenet:
+  -
+    - *mblaze1
+    - *pp
+    - *inspector
+    - *ps7
